@@ -1,0 +1,189 @@
+#!/usr/bin/python2
+
+################################################################
+# By: Adam Hall (ahall@quadrantsec.com) Red8383light@yahoo.com #
+# With help from Steve Rawls (srawls@quadrantsec.com)          #
+# This script is designed to take in a file with BRO ids data  #
+# And format the file into csv with human readable timestamps  #
+################################################################
+
+import getopt
+import sys
+import os.path
+import shutil
+import time
+import re
+flph = "/usr/local/bro2csv"
+sys.path.insert(0, '%s/header' % flph)
+from header import *
+
+version = 'Version 1.0 (May 9th, 2015)'
+
+# Define first to keep from throwing errors
+ifile = ''
+ofile = ''
+omit = ''
+ep = int(time.time())
+
+# Check for any leftover temp files older than a day and remove
+for rem in os.listdir("%s/tmp" % flph):
+        b = int(os.path.getmtime("/usr/local/bro2csv/tmp/"+rem))
+        if ep - b > 86400:
+                os.remove("/usr/local/bro2csv/tmp/"+rem)
+                continue
+
+try:
+        opts, args = getopt.getopt(sys.argv[1:], "gvhi:o:", ["help", "version", "infile", "outfile"])
+except getopt.GetoptError as err:
+        print str(err)
+        sys.exit(2)
+
+for o, a in opts:
+        if o in ('-i', "--infile"):
+                ifile=a
+        elif o in ('-o', "--outfile"):
+                ofile=a
+        elif o == "-g":
+                omit = 1
+        elif o in ("-v", "--version"):
+                print version
+                sys.exit(0)
+        elif o in ('-h', "--help"):
+                # Due to certain calls, we must place help here
+                print"""
+Example Input:
+        
+[*] The line beginning with '#' will be added as a comment
+[*] The line beginning with '@conn' will be replaced with the header for conn.log
+[*] The log line will be stripped of path, date replaced as human readable and put into csv format
+                
+# This is from conn.log
+@conn
+/var/log/bro/logs/current/conn.log:1430137663.516567    CPGk1CAleZbsDQdZa       172.25.20.16    57290   172.19.10.28    80      tcp     http    0.054011        950     1523714922      SF      T       0       ShADadfF        4       1123    5       2310    (empty)
+        
+# This is from files.log
+@files
+/var/log/bro/logs/current/files.log:1430137663.539970   FS2moTkCU8UeCcuC6       172.19.10.28    172.25.20.16    CPGk1CAleZbsDQdZa       HTTP    0       MD5,SHA1        text/html       -       0.000000        T       F       1367    -       0       0       F       -       8e04eac6dbc1f66887844df44d0c5429        1bea89814afeda50534ae098113ac5ba0566281a        -       -
+        
+# Options
+        
+( -h  --help )    = Display Help Menu
+( -v  --version ) = Display Version
+( -i  --ifile )   = File with bro data
+( -o  --ofile )   = File to output csv format (Not Required)
+( -g )            = Ignore file location (remove which file it came from 'conn.log,files.log')
+                """
+                sys.exit(0)
+
+# Check if filename is longer than 2 characters and is a file (not dir)
+if not ifile:
+        print "You must add a file using the '-i or --infile' option"
+        sys.exit(2)
+
+fl = len(ifile)
+
+if fl < 3 or not os.path.isfile(ifile):
+        print "The filname must be longer than 3 characters and exist..."
+        print "You may need to check your spelling"
+        sys.exit(2)
+
+# Create some variables and yes... we open 2 files... SORRY!
+nfile = ifile.rsplit('/',1)[1].strip()
+pn = ''
+nf = ("%s_%i.csv") % (nfile, ep)
+temp_bro = ("%s/tmp/tempbro%i") % (flph,ep)
+tb = open(temp_bro,'w+')
+tf = ("%s/tmp/tempbro2csv%i.txt") % (flph,ep)
+# This is the time format for output and can be changed using strftime logic
+td = '%Y-%b-%d_%H:%M:%S'
+heads = []
+
+# Create temp file
+shutil.copy2(ifile,tf)
+
+# Due to the nature of certain logs, we need to format manually
+# rather than using the python csv module.
+with open(tf,'r+') as otf:
+        for ot in otf:
+                ot = ot.strip()
+                # Some output contains commas so we must remove them first
+                ot1 = re.sub(',','-',ot)
+                # Change tabs to commas for delimiter
+                out = re.sub('\t',',',ot1)
+                tb.write(out+"\n")
+
+tf_in = open(tf,'w+')
+tb.close()
+
+print "[*] Taking in file and doing file magic"
+# Add human readable timestamp, write to temp file, and store headers
+with open(temp_bro,'r+') as br:
+        for t in br:
+                t = t.strip()
+                if not re.match('[#@]', t, 1):
+                        # This looks for unix_timestamp and deletes everything before it
+                        count = len(re.split("14\d{8}\.",t)[0])
+                        t = t[count:]
+                get = t.split(",",-1)
+                nl = get[0].strip()
+                if re.match('[#@]', nl, 1) or len(nl) == 0:
+                        if nl.startswith('#') or len(nl) == 0:
+                                tf_in.write("\n"+nl+"\n")
+                                continue
+                        nl = nl.split('.')[0]
+                        # We store these for headers later
+                        heads.append(nl)
+                        if not omit:
+                                tf_in.write("\n"+nl.lstrip('@')+".log")
+                        tf_in.write("\n"+nl+"\n\n")
+                        continue
+                # If something is out of order, the timestamp will miss below
+                # This tends to happen when a tab is mistaken as a line break
+                try:
+                        get[0] = time.strftime(td, time.localtime(float(get[0])))
+                except Exception,e:
+                        print "Please check your file for invalid markings 'cat -A (your_file)'"
+                        print "This can occur if you copy and pasted the data into a file"
+                        print "and errors occured such as a tab was changed to a line break"
+                        print str(e)
+                        os.remove(tf)
+                        os.remove(temp_bro)
+                        sys.exit(1)
+                get = ','.join(get)
+                tf_in.write(get+"\n")
+tf_in.close()
+
+print "[*] Adding in headers"
+
+tb = open(temp_bro,'w+')
+
+# Strip header entry and replace with actual header
+with open(tf,'r+') as fin:
+        for fi in fin:
+                if fi.startswith('@'):
+                        run = fi.lstrip('@').rstrip()
+                        try:
+                                pn = eval(run)
+                        except Exception,e:
+                                print "Please check if header '%s' exists in header.py" % run
+                                print str(e)
+                                os.remove(temp_bro)
+                                os.remove(tf)
+                                sys.exit(1)
+                        rep = run.replace(run,pn)
+                        tb.write(rep+"\n")
+                        continue
+                tb.write(fi)
+tb.close()
+os.remove(tf)
+
+# We copy temp file to new file and remove temp
+if not ofile:
+        shutil.copy2(temp_bro,nf)
+        os.remove(temp_bro)
+        print "[*] File is completed and named '%s'" % (nf)
+else:
+        ofile = re.sub('\.csv$','',ofile)
+        shutil.copy2(temp_bro,ofile+'.csv')
+        os.remove(temp_bro)
+        print "[*] File is completed and named '%s'" % (ofile+'.csv')
