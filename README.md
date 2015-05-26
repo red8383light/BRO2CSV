@@ -1,5 +1,6 @@
 # BRO2CSV
 Bro2csv is desinged to turn BRO data in a file into a csv formatted file.
+This is a pure Python implementation.
 
 To install bro2csv, simply run './configure'.
 
