@@ -1,0 +1,40 @@
+#!/usr/bin/python2
+
+import sys
+import os.path
+import shutil
+
+locale="/usr/local/bro2csv"
+
+# Primary Directory
+if not os.path.isdir(locale):
+        try:
+                os.mkdir(locale, 0755);
+        except Exception,e:
+                print str(e)
+                sys.exit(1)
+
+# Directory for temp files
+if not os.path.isdir("%s/tmp" % locale):
+        try:
+                os.mkdir("%s/tmp" % locale, 0755);
+        except Exception,e:
+                print str(e)
+                sys.exit(1)
+try:
+        shutil.copy2("bro2csv",locale)
+        shutil.copy2("header.py",locale)
+except Exception,e:
+        print str(e)
+        sys.exit(1)
+
+if not os.path.isfile("/usr/bin/bro2csv"):
+        try:
+                os.symlink("%s/bro2csv" % locale, "/usr/bin/bro2csv")
+        except Exception,e:
+                print str(e)
+                sys.exit(1)
+
+print "bro2csv is now installed"
+print "Current version of bro2csv:"
+os.system("bro2csv -v")
