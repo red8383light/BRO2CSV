@@ -13,6 +13,7 @@ in the header.py or custom headers of your own.
 
 To add a new header, you can do a HEAD of the particular log file and grab the header line.
 Then comma separate each column name and add to header.py following the format:
+
 (file name without the '.log)="comma separated column names"
 
 Example:
