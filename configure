@@ -17,8 +17,8 @@ if not os.path.isdir(locale):
 # Directory for temp files
 if not os.path.isdir("%s/tmp" % locale):
         try:
-                os.mkdir("%s/tmp" % locale, 0755);
-                os.chmod("%s/tmp" % locale, 0777);
+                os.umask(0)
+                os.mkdir("%s/tmp" % locale, 0777);
         except Exception,e:
                 print str(e)
                 sys.exit(1)
