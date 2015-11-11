@@ -33,15 +33,15 @@ for rem in os.listdir("%s/tmp" % flph):
                 continue
 
 try:
-        opts, args = getopt.getopt(sys.argv[1:], "gvhi:o:", ["help", "version", "infile", "outfile"])
+        opts, args = getopt.getopt(sys.argv[1:], "gvhi:o:", ["help", "version", "ifile", "ofile"])
 except getopt.GetoptError as err:
         print str(err)
         sys.exit(2)
 
 for o, a in opts:
-        if o in ('-i', "--infile"):
+        if o in ('-i', "--ifile"):
                 ifile=a
-        elif o in ('-o', "--outfile"):
+        elif o in ('-o', "--ofile"):
                 ofile=a
         elif o == "-g":
                 omit = 1
@@ -77,7 +77,7 @@ Example Input:
 
 # Check if filename is longer than 2 characters and is a file (not dir)
 if not ifile:
-        print "You must add a file using the '-i or --infile' option"
+        print "You must add a file using the '-i or --ifile' option"
         sys.exit(2)
 
 fl = len(ifile)
@@ -121,9 +121,9 @@ with open(temp_bro,'r+') as br:
         for t in br:
                 t = t.strip()
                 if not re.match('[#@]', t, 1):
-                        # This looks for unix_timestamp and deletes everything before it
-                        count = len(re.split("14\d{8}\.",t)[0])
-                        t = t[count:]
+                        
+                        
+                        t = t[0:]
                 get = t.split(",",-1)
                 nl = get[0].strip()
                 if re.match('[#@]', nl, 1) or len(nl) == 0:
